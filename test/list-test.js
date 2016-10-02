@@ -30,7 +30,7 @@ describe("List", function() {
     it("returns an instance of List", function() {
       expect(list).to.be.instanceOf(List);
     });
-    it.only("works", function() {
+    it("works", function() {
       expect(list.valueOf()).to.deep.equal([1,5,5]);
     });
   });
