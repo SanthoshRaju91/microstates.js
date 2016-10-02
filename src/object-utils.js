@@ -11,10 +11,6 @@ import assign from './assign';
  */
 export function mapObject(object = {}, fn) {
   return reduceObject(object, function(result, name, value) {
-    if (isArray(object)) {
-      result[name] = fn(name, value);
-      return result;
-    }
     return assign(result, { [name]: fn(name, value) });    
   }, sameType(object));
 }

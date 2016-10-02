@@ -8,7 +8,7 @@ import {
   FillMethod
 } from './properties';
 
-import { eachProperty, reduceObject, mapObject, isArray } from './object-utils';
+import { eachProperty, reduceObject, mapObject, isArray, sameType } from './object-utils';
 import box from './box';
 
 const { keys, defineProperty, defineProperties, getOwnPropertyDescriptors } = Object;
@@ -150,8 +150,7 @@ const Metadata = cached(class Metadata {
                 return value;
               }
             });
-            let newType = assign(isArray(merged) ? [] : {}, this, merged);
-            return new Type(newType);
+            return new Type(assign(sameType(merged), this, merged));
           } else {
             return new Type(result.valueOf());
           }
