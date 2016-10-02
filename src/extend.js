@@ -1,6 +1,14 @@
 import assign from './assign';
 import ComputedProperty from './computed-property';
-import { eachProperty, reduceObject, mapObject } from './object-utils';
+
+import { 
+  ValueOfMethod, 
+  LengthProperty, 
+  ForEachMethod,
+  FillMethod
+} from './properties';
+
+import { eachProperty, reduceObject, mapObject, isArray } from './object-utils';
 import box from './box';
 
 const { keys, defineProperty, defineProperties, getOwnPropertyDescriptors } = Object;
@@ -56,7 +64,11 @@ const Metadata = cached(class Metadata {
       return new ChildProperty(this, state, key, () => {
         if (this.constants.hasOwnProperty(key)) {
           let constant = this.constants[key].value;
-          return this.isMicrostate(constant) ? constant.set(value[key].valueOf()) : value[key];
+          if (this.isMicrostate(constant)) {
+            return constant.set(value[key].valueOf());
+          } else {
+            return value[key];
+          }
         } else {
           return value[key];
         }
@@ -67,11 +79,21 @@ const Metadata = cached(class Metadata {
 
     defineProperties(state, descriptors);
     defineProperty(state, 'valueOf', new ValueOfMethod(this, state, value, descriptors));
+
+    if (isArray(value)) {
+      defineProperty(state, 'length', new LengthProperty(this, state, value, descriptors));
+      defineProperty(state, 'forEach', new ForEachMethod(this, state, value, descriptors));
+    }
   }
 
   get constants() {
     let properties = Object.getOwnPropertyDescriptors(this.definition);
     return reduceObject(properties, (descriptors, name, descriptor)=> {
+      if (isArray(this)) {
+        if (['length', 'forEach'].includes(name)) {
+          return descriptors;
+        }
+      }
       if (name !== 'transitions' && name !== 'valueOf') {
         return assign(descriptors, {[name]: descriptor});
       } else {
@@ -128,7 +150,8 @@ const Metadata = cached(class Metadata {
                 return value;
               }
             });
-            return new Type(assign({}, this, merged));
+            let newType = assign(isArray(merged) ? [] : {}, this, merged);
+            return new Type(newType);
           } else {
             return new Type(result.valueOf());
           }
@@ -192,49 +215,6 @@ class ChildProperty extends ComputedProperty {
   }
 }
 
-class ValueOfMethod extends ComputedProperty {
-  constructor(metadata, state, value, descriptors) {
-    /**
-     * super receives a function that will return the valueOf this microstate.
-     * The returned value is cached by ComputedProperty.
-     */
-    super(function() {
-      let valueOf = compute();
-      function compute() {
-        if (keys(descriptors).length > 0) {
-          let properties = keys(descriptors).reduce((result, key)=> {
-            return assign(result, {
-              [key]: new ComputedProperty(function() {
-                return state[key].valueOf();
-              }, { enumerable: true })
-            });
-          }, {});
-          return Object.create(typeof value === 'undefined' ? null : value, properties);
-        } else {
-          return value;
-        }
-      }
-      if (metadata.definition.hasOwnProperty('valueOf')) {
-        /**
-         * Class has a custom valueOf method. This custom valueOf method
-         * should receive the fully expanded value of this microstate.
-         */
-        let customValueOf = metadata.definition.valueOf.call(state, valueOf);
-        return function() {
-          return customValueOf;
-        };
-      } else {
-        /**
-         * Without custom valueOf just return result of unboxing of value
-         */
-        return function() {
-          return valueOf;
-        };
-      }
-    });
-  }
-}
-
 function cached(constructor) {
   let prototype = constructor.prototype;
 
@@ -251,5 +231,4 @@ function cached(constructor) {
     }
   });
   return constructor;
-
 }

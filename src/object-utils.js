@@ -11,8 +11,12 @@ import assign from './assign';
  */
 export function mapObject(object = {}, fn) {
   return reduceObject(object, function(result, name, value) {
-    return assign(result, { [name]: fn(name, value) });
-  });
+    if (isArray(object)) {
+      result[name] = fn(name, value);
+      return result;
+    }
+    return assign(result, { [name]: fn(name, value) });    
+  }, sameType(object));
 }
 
 export function reduceObject(object, fn, result = {}) {
@@ -28,4 +32,12 @@ export function eachProperty(object, fn) {
       fn(name, object[name]);
     });
   }
+}
+
+export function isArray(value) {
+  return value instanceof Array;
+}
+
+export function sameType(object) {
+  return isArray(object) ? [] : {};
 }
